@@ -1,99 +1,47 @@
 const express = require('express');
 const cors = require('cors');
-const app = express();
-app.use(cors());
-app.use(express.json());
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
-const { createClient } = require('@supabase/supabase-js');
+const path = require('path');
+
+const app = express();
+const port = 3000;
+
+// Enable CORS to allow frontend communication
+app.use(cors());
+
+// Set up storage for uploaded files
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage });
+
+// Create uploads folder if it doesn't exist
 const fs = require('fs');
-const { OpenAI } = require("openai");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); // if using OpenAI Whisper
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const uploadDir = 'uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
-app.post('/upload', upload.single('audio'), async (req, res) => {
-  try {
-    // ✅ Upload audio file to Supabase Storage
-    const fileBuffer = fs.readFileSync(req.file.path);
-    const fileName = `${Date.now()}_${req.file.originalname}`;
-
-    const { data: storageData, error: storageError } = await supabase
-      .storage
-      .from('audios')
-      .upload(fileName, fileBuffer, {
-        contentType: req.file.mimetype,
-      });
-
-    if (storageError) {
-      console.error('Error uploading to Supabase Storage:', storageError);
-      return res.status(500).json({ message: 'File upload failed' });
-    }
-
-    // ✅ Get public URL of the uploaded file
-    const { data: publicUrlData } = supabase
-      .storage
-      .from('audios')
-      .getPublicUrl(fileName);
-
-    const audioUrl = publicUrlData.publicUrl;
-
-    // ✅ Transcribe audio using OpenAI Whisper
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(req.file.path),
-      model: "whisper-1",
-    });
-
-    const text = transcription.text;
-
-    // ✅ Insert transcription data into Supabase table
-    const { data, error } = await supabase
-      .from('transcriptions')
-      .insert([
-        {
-          audio_url: audioUrl,
-          transcription: text,
-        }
-      ]);
-
-    if (error) {
-      console.error('Error inserting into Supabase:', error);
-      return res.status(500).json({ message: 'Database insert failed' });
-    }
-
-    // ✅ Send success response
-    res.json({ transcription: text, audio_url: audioUrl, dbInsert: data });
-
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ message: 'Transcription failed' });
-  }
+// Basic route to test server
+app.get('/', (req, res) => {
+  res.send('Backend server is running!');
 });
 
-app.get('/transcriptions', async (req, res) => {
-  try {
-    // ✅ Fetch all transcriptions from Supabase table
-    const { data, error } = await supabase
-      .from('transcriptions')
-      .select('*')
-      .order('created_at', { ascending: false }); // latest first
-
-    if (error) {
-      console.error('Error fetching from Supabase:', error);
-      return res.status(500).json({ message: 'Database fetch failed' });
-    }
-
-    // ✅ Send fetched data as JSON
-    res.json(data);
-
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ message: 'Server error while fetching transcriptions' });
+// API route for file upload
+app.post('/upload', upload.single('audio'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
   }
+  res.json({ message: 'File uploaded successfully', filename: req.file.filename });
 });
 
-app.listen(5000, () => {
-  console.log('Server running on port 5000');
+// Start the server
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
 });

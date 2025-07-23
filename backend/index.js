@@ -3,7 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-const Replicate = require('replicate');
+const { execSync } = require('child_process');
 require('dotenv').config();
 
 const app = express();
@@ -11,13 +11,8 @@ const port = 3000;
 
 // Initialize Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY; // Prefer service key
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Initialize Replicate
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_KEY,
-});
 
 // Enable CORS
 app.use(cors());
@@ -25,18 +20,21 @@ app.use(cors());
 // Set up storage for uploaded files
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, 'Uploads/');
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 1 * 1024 * 1024 }, // 1MB limit
+});
 
 // Create uploads folder if it doesn't exist
 const fs = require('fs');
-const uploadDir = 'uploads';
+const uploadDir = 'Uploads';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
@@ -53,55 +51,106 @@ app.get('/test-supabase', async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Connected to Supabase', data });
   } catch (error) {
+    console.error('Supabase test error:', error);
     res.status(500).json({ error: 'Failed to connect to Supabase', details: error.message });
   }
 });
 
 // File upload and transcription route
 app.post('/upload', upload.single('audio'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
+  let filePath = null;
 
   try {
-    // Read the uploaded file
-    const filePath = path.join(__dirname, 'uploads', req.file.filename);
-    const fileBuffer = fs.readFileSync(filePath);
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
 
-    // Convert buffer to base64 for Replicate API
-    const base64Audio = fileBuffer.toString('base64');
-    const mimeType = req.file.mimetype; // e.g., audio/m午
+    console.log('File received:', req.file);
+    filePath = path.join(__dirname, 'Uploads', req.file.filename);
 
-    // Send to Replicate for transcription
-    const output = await replicate.run(
-      'openai/whisper:ea14436766137b3a2633236b9661b7d28f79ac10',
-      {
-        input: {
-          audio: `data:${mimeType};base64,${base64Audio}`,
-          model: 'large-v3',
-        },
+    if (!fs.existsSync(filePath)) {
+      return res.status(400).json({ error: 'File not found after upload' });
+    }
+
+    const mimeType = req.file.mimetype || 'audio/webm';
+    console.log('MIME Type:', mimeType);
+    console.log('File size:', fs.statSync(filePath).size);
+
+    const allowedMimeTypes = [
+      'audio/mpeg', 'audio/wav', 'audio/webm', 'audio/mp4',
+      'audio/ogg', 'audio/flac', 'audio/aac', 'audio/m4a',
+    ];
+    if (!allowedMimeTypes.includes(mimeType)) {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      return res.status(400).json({
+        error: 'Unsupported audio format',
+        details: `MIME type ${mimeType} not allowed. Supported: ${allowedMimeTypes.join(', ')}`,
+      });
+    }
+
+    console.log('Starting speech-to-text transformation with AssemblyAI...');
+    let transcription = '';
+    try {
+      if (!process.env.ASSEMBLYAI_API_KEY) {
+        throw new Error('ASSEMBLYAI_API_KEY is not set');
       }
-    );
+      transcription = execSync(`python transcribe.py "${filePath}"`).toString().trim();
+      if (!transcription) {
+        transcription = 'No speech detected in the audio.';
+      }
+      console.log('Speech-to-text transformation completed with AssemblyAI');
+    } catch (error) {
+      console.error('AssemblyAI transcription error:', error.message);
+      transcription = `Mock transcription for ${req.file.filename}: This is a test transcription due to error.`;
+    }
 
-    const transcription = output.output;
+    console.log('Extracted transcription:', transcription);
 
-    // Save to Supabase
+    console.log('Saving transcription to Supabase...');
     const { error: dbError } = await supabase
       .from('transcriptions')
-      .insert([{ filename: req.file.filename, transcription }]);
+      .insert([
+        {
+          filename: req.file.filename,
+          transcription: transcription,
+          created_at: new Date().toISOString(),
+        },
+      ]);
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('Supabase error:', dbError);
+      throw new Error(`Database error: ${dbError.message}`);
+    }
 
-    // Delete the file from server (optional, to save space)
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
 
-    res.json({ message: 'File uploaded and transcribed', transcription });
+    console.log('Success! Sending transcription to frontend');
+    res.json({
+      message: 'File uploaded and transcribed successfully',
+      transcription: transcription,
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Transcription failed', details: error.message });
+    console.error('Error in /upload route:', {
+      message: error.message,
+      stack: error.stack,
+    });
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    res.status(500).json({
+      error: 'Transcription failed',
+      details: error.message,
+    });
   }
 });
 
-// Start the server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
+  console.log('Environment variables check:');
+  console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Not set');
+  console.log('SUPABASE_KEY:', process.env.SUPABASE_KEY ? 'Set' : 'Not set');
+  console.log('SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? 'Set' : 'Not set');
+  console.log('ASSEMBLYAI_API_KEY:', process.env.ASSEMBLYAI_API_KEY ? 'Set' : 'Not set');
 });

@@ -29,7 +29,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 1 * 1024 * 1024 }, // 1MB limit
+  limits: { fileSize: 1 * 1024 * 1024 }, // 1MB limit for free tier
 });
 
 // Create uploads folder if it doesn't exist
@@ -68,6 +68,22 @@ app.get('/transcriptions', async (req, res) => {
   } catch (error) {
     console.error('Error fetching transcriptions:', error);
     res.status(500).json({ error: 'Failed to fetch transcriptions', details: error.message });
+  }
+});
+
+// Delete a transcription
+app.delete('/transcriptions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase
+      .from('transcriptions')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    res.json({ message: `Transcription with id ${id} deleted successfully` });
+  } catch (error) {
+    console.error('Error deleting transcription:', error);
+    res.status(500).json({ error: 'Failed to delete transcription', details: error.message });
   }
 });
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { FaMicrophone, FaStop, FaUpload } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaUpload, FaTrash } from 'react-icons/fa';
 import './App.css';
 
 function App() {
@@ -10,6 +10,7 @@ function App() {
   const [error, setError] = useState('');
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const fileInputRef = useRef(null); // Add ref for file input
 
   // Fetch past transcriptions on mount
   useEffect(() => {
@@ -44,12 +45,11 @@ function App() {
           setTranscription('Processing audio...');
           const response = await axios.post('http://localhost:3000/upload', formData);
           setTranscription(response.data.transcription);
-          // Refresh past transcriptions
           const transcriptionsResponse = await axios.get('http://localhost:3000/transcriptions');
           setPastTranscriptions(transcriptionsResponse.data.data || []);
         } catch (err) {
           console.error('Upload error:', err);
-          setError('Failed to transcribe: ' + err.message);
+          setError('Failed to transcribe: ' + err.response?.data?.details || err.message);
           setTranscription('');
         }
       };
@@ -71,23 +71,46 @@ function App() {
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected');
+      setError('No file selected');
+      return;
+    }
 
+    console.log('Selected file:', file.name, file.type, file.size); // Debug log
     const formData = new FormData();
     formData.append('audio', file);
 
     try {
       setTranscription('Processing audio...');
-      const response = await axios.post('http://localhost:3000/upload', formData);
+      setError('');
+      const response = await axios.post('http://localhost:3000/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      console.log('Upload response:', response.data); // Debug log
       setTranscription(response.data.transcription);
-      // Refresh past transcriptions
       const transcriptionsResponse = await axios.get('http://localhost:3000/transcriptions');
       setPastTranscriptions(transcriptionsResponse.data.data || []);
     } catch (err) {
       console.error('Upload error:', err);
-      setError('Failed to transcribe: ' + err.message);
+      setError('Failed to transcribe: ' + (err.response?.data?.details || err.message));
       setTranscription('');
     }
+  };
+
+  const handleDeleteTranscription = async (id) => {
+    try {
+      await axios.delete(`http://localhost:3000/transcriptions/${id}`);
+      setPastTranscriptions(pastTranscriptions.filter((t) => t.id !== id));
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError('Failed to delete transcription: ' + (err.response?.data?.details || err.message));
+    }
+  };
+
+  const triggerFileInput = () => {
+    console.log('Triggering file input'); // Debug log
+    fileInputRef.current.click();
   };
 
   return (
@@ -100,12 +123,11 @@ function App() {
           onChange={handleFileUpload}
           style={{ display: 'none' }}
           id="audio-upload"
+          ref={fileInputRef} // Attach ref
         />
-        <label htmlFor="audio-upload">
-          <button className="upload-btn">
-            <FaUpload /> Upload Audio
-          </button>
-        </label>
+        <button onClick={triggerFileInput} className="upload-btn">
+          <FaUpload /> Upload Audio
+        </button>
         <button
           onClick={isRecording ? stopRecording : startRecording}
           className={isRecording ? 'stop-btn' : 'record-btn'}
@@ -123,6 +145,12 @@ function App() {
           {pastTranscriptions.map((t) => (
             <li key={t.id}>
               <strong>{t.filename}</strong> ({new Date(t.created_at).toLocaleString()}): {t.transcription}
+              <button
+                onClick={() => handleDeleteTranscription(t.id)}
+                className="delete-btn"
+              >
+                <FaTrash /> Delete
+              </button>
             </li>
           ))}
         </ul>

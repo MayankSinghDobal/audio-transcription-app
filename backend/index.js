@@ -56,6 +56,21 @@ app.get('/test-supabase', async (req, res) => {
   }
 });
 
+// Fetch all transcriptions
+app.get('/transcriptions', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('transcriptions')
+      .select('id, filename, transcription, created_at')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ message: 'Transcriptions fetched successfully', data });
+  } catch (error) {
+    console.error('Error fetching transcriptions:', error);
+    res.status(500).json({ error: 'Failed to fetch transcriptions', details: error.message });
+  }
+});
+
 // File upload and transcription route
 app.post('/upload', upload.single('audio'), async (req, res) => {
   let filePath = null;

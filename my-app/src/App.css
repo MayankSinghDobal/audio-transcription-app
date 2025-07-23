@@ -5,7 +5,7 @@
   padding: 20px;
 }
 
-.upload-btn, .record-btn, .stop-btn, .delete-btn {
+.upload-btn, .record-btn, .stop-btn, .delete-btn, .export-btn {
   margin: 10px;
   padding: 10px 20px;
   font-size: 16px;
@@ -38,6 +38,11 @@
   margin-left: 10px;
   padding: 5px 10px;
   font-size: 14px;
+}
+
+.export-btn {
+  background-color: #FFC107;
+  color: black;
 }
 
 .error {

@@ -23,7 +23,7 @@ h1 {
   margin-bottom: 20px;
 }
 
-.upload-btn, .record-btn, .stop-btn, .export-btn, .logout-btn, .login-btn, .signup-btn, .edit-btn, .save-btn, .cancel-btn, .delete-btn, .pagination-btn {
+.upload-btn, .record-btn, .stop-btn, .export-btn, .logout-btn, .login-btn, .signup-btn, .edit-btn, .save-btn, .cancel-btn, .delete-btn, .pagination-btn, .google-btn {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -79,6 +79,15 @@ h1 {
   background-color: #5a6268;
 }
 
+.google-btn {
+  background-color: #4285f4;
+  color: white;
+}
+
+.google-btn:hover:not(:disabled) {
+  background-color: #3578e5;
+}
+
 .edit-btn {
   background-color: #007bff;
   color: white;
@@ -125,7 +134,7 @@ h1 {
   background-color: #5a6268;
 }
 
-.upload-btn:disabled, .record-btn:disabled, .stop-btn:disabled, .export-btn:disabled, .logout-btn:disabled, .login-btn:disabled, .signup-btn:disabled, .edit-btn:disabled, .save-btn:disabled, .cancel-btn:disabled, .delete-btn:disabled, .pagination-btn:disabled {
+.upload-btn:disabled, .record-btn:disabled, .stop-btn:disabled, .export-btn:disabled, .logout-btn:disabled, .login-btn:disabled, .signup-btn:disabled, .edit-btn:disabled, .save-btn:disabled, .cancel-btn:disabled, .delete-btn:disabled, .pagination-btn:disabled, .google-btn:disabled {
   background-color: #ccc;
   cursor: not-allowed;
 }
@@ -163,6 +172,7 @@ h1 {
 
 .form-buttons {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   justify-content: center;
 }

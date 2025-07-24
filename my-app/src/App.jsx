@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { FaMicrophone, FaStop, FaUpload, FaTrash, FaFileExport, FaSignInAlt, FaSignOutAlt, FaEdit, FaSave, FaTimes, FaSearch, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaUpload, FaTrash, FaFileExport, FaSignInAlt, FaSignOutAlt, FaEdit, FaSave, FaTimes, FaSearch, FaArrowLeft, FaArrowRight, FaGoogle } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 import './App.css';
 
@@ -155,6 +155,29 @@ function App() {
     } catch (err) {
       console.error('Sign-up error:', err);
       setError('Sign-up failed: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setError('');
+      setLoading(true);
+      console.log('Attempting Google login');
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'http://localhost:5173'
+        }
+      });
+      
+      if (error) throw error;
+      console.log('Google login initiated');
+    } catch (err) {
+      console.error('Google login error:', err);
+      setError('Google login failed: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -646,6 +669,9 @@ function App() {
             </button>
             <button onClick={handleSignUp} className="signup-btn" disabled={loading}>
               <FaSignInAlt /> {loading ? 'Signing up...' : 'Sign Up'}
+            </button>
+            <button onClick={handleGoogleLogin} className="google-btn" disabled={loading}>
+              <FaGoogle /> {loading ? 'Logging in...' : 'Sign in with Google'}
             </button>
           </div>
           {error && <div className="error">{error}</div>}

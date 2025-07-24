@@ -1,65 +1,226 @@
 .App {
-  text-align: center;
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
+  font-family: Arial, sans-serif;
 }
 
-.upload-btn, .record-btn, .stop-btn, .delete-btn, .export-btn {
-  margin: 10px;
-  padding: 10px 20px;
-  font-size: 16px;
-  cursor: pointer;
-  border: none;
-  border-radius: 5px;
-  display: inline-flex;
+h1 {
+  text-align: center;
+  color: #333;
+}
+
+.user-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.upload-btn, .record-btn, .stop-btn, .export-btn, .logout-btn, .login-btn, .signup-btn, .edit-btn, .save-btn, .cancel-btn, .delete-btn {
+  display: flex;
   align-items: center;
   gap: 5px;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
 }
 
 .upload-btn {
-  background-color: #4CAF50;
+  background-color: #007bff;
   color: white;
+}
+
+.upload-btn:hover:not(:disabled) {
+  background-color: #0056b3;
 }
 
 .record-btn {
-  background-color: #2196F3;
+  background-color: #28a745;
   color: white;
+}
+
+.record-btn:hover:not(:disabled) {
+  background-color: #218838;
 }
 
 .stop-btn {
-  background-color: #F44336;
+  background-color: #dc3545;
   color: white;
 }
 
-.delete-btn {
-  background-color: #F44336;
-  color: white;
-  margin-left: 10px;
-  padding: 5px 10px;
-  font-size: 14px;
+.stop-btn:hover:not(:disabled) {
+  background-color: #c82333;
 }
 
 .export-btn {
-  background-color: #FFC107;
-  color: black;
+  background-color: #17a2b8;
+  color: white;
+}
+
+.export-btn:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.logout-btn, .login-btn, .signup-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.logout-btn:hover:not(:disabled), .login-btn:hover:not(:disabled), .signup-btn:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+.edit-btn {
+  background-color: #007bff;
+  color: white;
+  margin-left: 10px;
+}
+
+.edit-btn:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.save-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.cancel-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.upload-btn:disabled, .record-btn:disabled, .stop-btn:disabled, .export-btn:disabled, .logout-btn:disabled, .login-btn:disabled, .signup-btn:disabled, .edit-btn:disabled, .save-btn:disabled, .cancel-btn:disabled, .delete-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 .error {
-  color: red;
+  color: #dc3545;
+  margin: 10px 0;
+  text-align: center;
 }
 
-ul {
+.loading {
+  color: #007bff;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.auth-form {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.form-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.form-inputs input {
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.transcription-section {
+  margin: 20px 0;
+}
+
+.transcription-text {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 4px;
+  min-height: 100px;
+}
+
+.past-transcriptions {
+  margin-top: 20px;
+}
+
+.transcriptions-list {
   list-style: none;
   padding: 0;
 }
 
-li {
-  margin: 10px 0;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+.transcription-item {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
+.transcription-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.transcription-date {
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.transcription-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.edit-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 8px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.edit-buttons {
+  display: flex;
+  gap: 10px;
 }

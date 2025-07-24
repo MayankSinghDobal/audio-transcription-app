@@ -101,15 +101,21 @@ app.get('/test-supabase', async (req, res) => {
   }
 });
 
-// Fetch user's transcriptions with optional search
+// Fetch user's transcriptions with optional search and pagination
 app.get('/transcriptions', authenticate, async (req, res) => {
   try {
-    const { query } = req.query;
-    console.log('Fetching transcriptions for user:', req.user.sub, 'with query:', query);
+    const { query, page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    console.log('Fetching transcriptions for user:', req.user.sub, 'with query:', query, 'page:', pageNum, 'limit:', limitNum);
     
+    // Calculate offset
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build query
     let supabaseQuery = supabaseAdmin
       .from('transcriptions')
-      .select('id, filename, transcription, created_at, updated_at')
+      .select('id, filename, transcription, created_at, updated_at', { count: 'exact' })
       .eq('user_id', req.user.sub)
       .order('created_at', { ascending: false });
 
@@ -118,12 +124,19 @@ app.get('/transcriptions', authenticate, async (req, res) => {
       supabaseQuery = supabaseQuery.or(`filename.ilike.${searchPattern},transcription.ilike.${searchPattern}`);
     }
 
-    const { data, error } = await supabaseQuery;
+    // Apply pagination
+    supabaseQuery = supabaseQuery.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await supabaseQuery;
     
     if (error) throw error;
     
-    console.log('Fetched transcriptions count:', data?.length || 0);
-    res.json({ message: 'Transcriptions fetched successfully', data: data || [] });
+    console.log('Fetched transcriptions count:', data?.length || 0, 'Total count:', count);
+    res.json({ 
+      message: 'Transcriptions fetched successfully', 
+      data: data || [], 
+      total: count || 0 
+    });
   } catch (error) {
     console.error('Error fetching transcriptions:', error);
     res.status(500).json({ error: 'Failed to fetch transcriptions', details: error.message });

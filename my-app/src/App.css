@@ -23,7 +23,7 @@ h1 {
   margin-bottom: 20px;
 }
 
-.upload-btn, .record-btn, .stop-btn, .export-btn, .logout-btn, .login-btn, .signup-btn, .edit-btn, .save-btn, .cancel-btn, .delete-btn {
+.upload-btn, .record-btn, .stop-btn, .export-btn, .logout-btn, .login-btn, .signup-btn, .edit-btn, .save-btn, .cancel-btn, .delete-btn, .pagination-btn {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -116,7 +116,16 @@ h1 {
   background-color: #c82333;
 }
 
-.upload-btn:disabled, .record-btn:disabled, .stop-btn:disabled, .export-btn:disabled, .logout-btn:disabled, .login-btn:disabled, .signup-btn:disabled, .edit-btn:disabled, .save-btn:disabled, .cancel-btn:disabled, .delete-btn:disabled {
+.pagination-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+.upload-btn:disabled, .record-btn:disabled, .stop-btn:disabled, .export-btn:disabled, .logout-btn:disabled, .login-btn:disabled, .signup-btn:disabled, .edit-btn:disabled, .save-btn:disabled, .cancel-btn:disabled, .delete-btn:disabled, .pagination-btn:disabled {
   background-color: #ccc;
   cursor: not-allowed;
 }
@@ -249,4 +258,17 @@ h1 {
   left: 10px;
   transform: translateY(-50%);
   color: #6c757d;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.pagination-info {
+  font-size: 16px;
+  color: #333;
 }

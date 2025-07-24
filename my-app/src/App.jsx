@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { FaMicrophone, FaStop, FaUpload, FaTrash, FaFileExport, FaSignInAlt, FaSignOutAlt, FaEdit, FaSave, FaTimes, FaSearch } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaUpload, FaTrash, FaFileExport, FaSignInAlt, FaSignOutAlt, FaEdit, FaSave, FaTimes, FaSearch, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 import './App.css';
 
@@ -22,6 +22,9 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const fileInputRef = useRef(null);
@@ -62,27 +65,34 @@ function App() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // Fetch past transcriptions when user or search query changes
+  // Fetch past transcriptions when user, search query, or page changes
   useEffect(() => {
     if (user && user.access_token) {
       fetchTranscriptions();
     } else {
       setPastTranscriptions([]);
+      setCurrentPage(1);
+      setTotalPages(1);
     }
-  }, [user, searchQuery]);
+  }, [user, searchQuery, currentPage]);
 
   const fetchTranscriptions = async () => {
     if (!user?.access_token) return;
     
     try {
       setLoading(true);
-      console.log('Fetching transcriptions with query:', searchQuery);
+      console.log('Fetching transcriptions with query:', searchQuery, 'page:', currentPage);
       const response = await axios.get('http://localhost:3000/transcriptions', {
         headers: { Authorization: `Bearer ${user.access_token}` },
-        params: { query: searchQuery },
+        params: { 
+          query: searchQuery,
+          page: currentPage,
+          limit: itemsPerPage
+        },
       });
       setPastTranscriptions(response.data.data || []);
-      console.log('Transcriptions fetched:', response.data.data?.length || 0);
+      setTotalPages(Math.max(1, Math.ceil((response.data.total || 0) / itemsPerPage)));
+      console.log('Transcriptions fetched:', response.data.data?.length || 0, 'Total:', response.data.total, 'Pages:', totalPages);
     } catch (err) {
       console.error('Error fetching transcriptions:', err);
       setError('Failed to fetch past transcriptions: ' + (err.response?.data?.details || err.message));
@@ -163,6 +173,8 @@ function App() {
       setEditingId(null);
       setEditText('');
       setSearchQuery('');
+      setCurrentPage(1);
+      setTotalPages(1);
       console.log('Logout successful');
     } catch (err) {
       console.error('Logout error:', err);
@@ -227,7 +239,7 @@ function App() {
           
           setTranscription(response.data.transcription);
           console.log('Upload successful');
-          
+          setCurrentPage(1); // Reset to first page after new transcription
           await fetchTranscriptions();
         } catch (err) {
           console.error('Upload error:', err);
@@ -300,7 +312,7 @@ function App() {
       
       console.log('Upload response:', response.data);
       setTranscription(response.data.transcription);
-      
+      setCurrentPage(1); // Reset to first page after new transcription
       await fetchTranscriptions();
     } catch (err) {
       console.error('Upload error:', err);
@@ -334,6 +346,10 @@ function App() {
       
       setPastTranscriptions(pastTranscriptions.filter((t) => t.id !== id));
       console.log('Deleted transcription:', id);
+      if (pastTranscriptions.length <= 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1); // Go to previous page if current page is empty
+      }
+      await fetchTranscriptions();
     } catch (err) {
       console.error('Delete error:', err);
       setError('Failed to delete transcription: ' + (err.response?.data?.details || err.message));
@@ -379,6 +395,7 @@ function App() {
       console.log('Updated transcription:', id);
       setEditingId(null);
       setEditText('');
+      await fetchTranscriptions(); // Refresh to ensure pagination consistency
     } catch (err) {
       console.error('Update error:', err);
       setError('Failed to update transcription: ' + (err.response?.data?.details || err.message));
@@ -442,6 +459,19 @@ function App() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
+    setCurrentPage(1); // Reset to first page on new search
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
   };
 
   return (
@@ -565,6 +595,25 @@ function App() {
                     </li>
                   ))}
                 </ul>
+                <div className="pagination">
+                  <button
+                    onClick={goToPreviousPage}
+                    className="pagination-btn"
+                    disabled={loading || currentPage === 1}
+                  >
+                    <FaArrowLeft /> Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={goToNextPage}
+                    className="pagination-btn"
+                    disabled={loading || currentPage === totalPages}
+                  >
+                    Next <FaArrowRight />
+                  </button>
+                </div>
               </>
             ) : (
               <p>No past transcriptions available. Upload an audio file to get started!</p>

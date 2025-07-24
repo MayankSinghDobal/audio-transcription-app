@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { FaMicrophone, FaStop, FaUpload, FaTrash, FaFileExport, FaSignInAlt, FaSignOutAlt, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaUpload, FaTrash, FaFileExport, FaSignInAlt, FaSignOutAlt, FaEdit, FaSave, FaTimes, FaSearch } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 import './App.css';
 
@@ -21,6 +21,7 @@ function App() {
   const [password, setPassword] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const fileInputRef = useRef(null);
@@ -61,23 +62,24 @@ function App() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // Fetch past transcriptions when user changes
+  // Fetch past transcriptions when user or search query changes
   useEffect(() => {
     if (user && user.access_token) {
       fetchTranscriptions();
     } else {
       setPastTranscriptions([]);
     }
-  }, [user]);
+  }, [user, searchQuery]);
 
   const fetchTranscriptions = async () => {
     if (!user?.access_token) return;
     
     try {
       setLoading(true);
-      console.log('Fetching transcriptions...');
+      console.log('Fetching transcriptions with query:', searchQuery);
       const response = await axios.get('http://localhost:3000/transcriptions', {
         headers: { Authorization: `Bearer ${user.access_token}` },
+        params: { query: searchQuery },
       });
       setPastTranscriptions(response.data.data || []);
       console.log('Transcriptions fetched:', response.data.data?.length || 0);
@@ -160,6 +162,7 @@ function App() {
       setError('');
       setEditingId(null);
       setEditText('');
+      setSearchQuery('');
       console.log('Logout successful');
     } catch (err) {
       console.error('Logout error:', err);
@@ -437,6 +440,10 @@ function App() {
     }
   };
 
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
   return (
     <div className="App">
       <h1>Audio Transcription App</h1>
@@ -487,6 +494,17 @@ function App() {
             <h2>Past Transcriptions ({pastTranscriptions.length})</h2>
             {pastTranscriptions.length > 0 ? (
               <>
+                <div className="search-container">
+                  <input
+                    type="text"
+                    placeholder="Search transcriptions..."
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    className="search-input"
+                    disabled={loading}
+                  />
+                  <FaSearch className="search-icon" />
+                </div>
                 <button onClick={exportToCSV} className="export-btn" disabled={loading}>
                   <FaFileExport /> Export as CSV
                 </button>

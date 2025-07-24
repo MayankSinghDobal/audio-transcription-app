@@ -101,15 +101,24 @@ app.get('/test-supabase', async (req, res) => {
   }
 });
 
-// Fetch user's transcriptions
+// Fetch user's transcriptions with optional search
 app.get('/transcriptions', authenticate, async (req, res) => {
   try {
-    console.log('Fetching transcriptions for user:', req.user.sub);
-    const { data, error } = await supabaseAdmin
+    const { query } = req.query;
+    console.log('Fetching transcriptions for user:', req.user.sub, 'with query:', query);
+    
+    let supabaseQuery = supabaseAdmin
       .from('transcriptions')
       .select('id, filename, transcription, created_at, updated_at')
       .eq('user_id', req.user.sub)
       .order('created_at', { ascending: false });
+
+    if (query && query.trim()) {
+      const searchPattern = `%${query.trim()}%`;
+      supabaseQuery = supabaseQuery.or(`filename.ilike.${searchPattern},transcription.ilike.${searchPattern}`);
+    }
+
+    const { data, error } = await supabaseQuery;
     
     if (error) throw error;
     

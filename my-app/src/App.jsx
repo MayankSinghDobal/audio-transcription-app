@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { FaMicrophone, FaStop, FaUpload, FaTrash, FaFileExport, FaSignInAlt, FaSignOutAlt, FaEdit, FaSave, FaTimes, FaSearch, FaArrowLeft, FaArrowRight, FaGoogle } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
+import DragonAnimation from './DragonAnimation';
 import './App.css';
 
 // Initialize Supabase client
@@ -16,6 +17,7 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,13 +31,11 @@ function App() {
   const audioChunksRef = useRef([]);
   const fileInputRef = useRef(null);
 
-  // Check and refresh user session on mount
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
-        
         if (session?.user && session?.access_token) {
           setUser({ ...session.user, access_token: session.access_token });
           console.log('Session checked:', session.user.email, 'Token exists:', !!session.access_token);
@@ -52,7 +52,6 @@ function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event);
-      
       if (session?.user && session?.access_token) {
         setUser({ ...session.user, access_token: session.access_token });
         console.log('Auth state changed:', event, session.user.email, 'Token exists:', !!session.access_token);
@@ -65,7 +64,6 @@ function App() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // Fetch past transcriptions when user, search query, or page changes
   useEffect(() => {
     if (user && user.access_token) {
       fetchTranscriptions();
@@ -78,17 +76,12 @@ function App() {
 
   const fetchTranscriptions = async () => {
     if (!user?.access_token) return;
-    
     try {
-      setLoading(true);
+      setSearchLoading(true);
       console.log('Fetching transcriptions with query:', searchQuery, 'page:', currentPage);
       const response = await axios.get('http://localhost:3000/transcriptions', {
         headers: { Authorization: `Bearer ${user.access_token}` },
-        params: { 
-          query: searchQuery,
-          page: currentPage,
-          limit: itemsPerPage
-        },
+        params: { query: searchQuery, page: currentPage, limit: itemsPerPage },
       });
       setPastTranscriptions(response.data.data || []);
       setTotalPages(Math.max(1, Math.ceil((response.data.total || 0) / itemsPerPage)));
@@ -97,7 +90,7 @@ function App() {
       console.error('Error fetching transcriptions:', err);
       setError('Failed to fetch past transcriptions: ' + (err.response?.data?.details || err.message));
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
     }
   };
 
@@ -106,19 +99,12 @@ function App() {
       setError('Please enter both email and password');
       return;
     }
-
     try {
       setError('');
       setLoading(true);
       console.log('Attempting login with:', email);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({ 
-        email: email.trim(), 
-        password 
-      });
-      
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) throw error;
-      
       console.log('Login successful, User:', data.user.email, 'Token exists:', !!data.session.access_token);
       setEmail('');
       setPassword('');
@@ -135,19 +121,12 @@ function App() {
       setError('Please enter both email and password');
       return;
     }
-
     try {
       setError('');
       setLoading(true);
       console.log('Attempting signup with:', email);
-      
-      const { data, error } = await supabase.auth.signUp({ 
-        email: email.trim(), 
-        password 
-      });
-      
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
       if (error) throw error;
-      
       console.log('Signup response:', data);
       setError('Sign-up successful! Check your email to confirm your account.');
       setEmail('');
@@ -165,14 +144,10 @@ function App() {
       setError('');
       setLoading(true);
       console.log('Attempting Google login');
-      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: 'http://localhost:5173'
-        }
+        options: { redirectTo: 'http://localhost:5173' }
       });
-      
       if (error) throw error;
       console.log('Google login initiated');
     } catch (err) {
@@ -212,57 +187,39 @@ function App() {
       setError('Please log in to record audio');
       return;
     }
-
     try {
       setError('');
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        } 
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } 
       });
-      
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
       audioChunksRef.current = [];
-
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
-
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         console.log('Recording stopped, blob size:', audioBlob.size);
-        
         if (audioBlob.size === 0) {
           setError('Recording failed - no audio data captured');
           return;
         }
-
         const formData = new FormData();
         formData.append('audio', audioBlob, 'recording.webm');
-
         try {
           setLoading(true);
           setTranscription('Processing audio...');
           setError('');
-          
           console.log('Uploading recording...');
           const response = await axios.post('http://localhost:3000/upload', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              Authorization: `Bearer ${user.access_token}`,
-            },
+            headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.access_token}` },
             timeout: 60000,
           });
-          
           setTranscription(response.data.transcription);
           console.log('Upload successful');
-          setCurrentPage(1); // Reset to first page after new transcription
+          setCurrentPage(1);
           await fetchTranscriptions();
         } catch (err) {
           console.error('Upload error:', err);
@@ -271,10 +228,8 @@ function App() {
         } finally {
           setLoading(false);
         }
-
         stream.getTracks().forEach(track => track.stop());
       };
-
       mediaRecorderRef.current.start(1000);
       setIsRecording(true);
       console.log('Recording started');
@@ -297,45 +252,34 @@ function App() {
       setError('Please log in to upload audio');
       return;
     }
-
     const file = event.target.files[0];
     if (!file) {
       console.log('No file selected');
       return;
     }
-
     console.log('Selected file:', file.name, file.type, 'Size:', file.size);
-
     if (file.size > 10 * 1024 * 1024) {
       setError('File too large. Maximum size is 10MB.');
       return;
     }
-
     const validTypes = ['audio/mpeg', 'audio/wav', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/flac', 'audio/aac', 'audio/m4a', 'video/webm', 'video/mp4'];
     if (!validTypes.includes(file.type)) {
       setError(`Unsupported file type: ${file.type}`);
       return;
     }
-
     const formData = new FormData();
     formData.append('audio', file);
-
     try {
       setLoading(true);
       setTranscription('Processing audio...');
       setError('');
-      
       const response = await axios.post('http://localhost:3000/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${user.access_token}`,
-        },
+        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.access_token}` },
         timeout: 60000,
       });
-      
       console.log('Upload response:', response.data);
       setTranscription(response.data.transcription);
-      setCurrentPage(1); // Reset to first page after new transcription
+      setCurrentPage(1);
       await fetchTranscriptions();
     } catch (err) {
       console.error('Upload error:', err);
@@ -354,23 +298,19 @@ function App() {
       setError('Please log in to delete transcriptions');
       return;
     }
-
     if (!window.confirm('Are you sure you want to delete this transcription?')) {
       return;
     }
-
     try {
       setLoading(true);
       console.log('Deleting transcription:', id);
-      
-      await axios.delete(`http://localhost:3000/transcriptions/${id}`, {
+      const response = await axios.delete(`http://localhost:3000/transcriptions/${id}`, {
         headers: { Authorization: `Bearer ${user.access_token}` },
       });
-      
       setPastTranscriptions(pastTranscriptions.filter((t) => t.id !== id));
       console.log('Deleted transcription:', id);
       if (pastTranscriptions.length <= 1 && currentPage > 1) {
-        setCurrentPage(currentPage - 1); // Go to previous page if current page is empty
+        setCurrentPage(currentPage - 1);
       }
       await fetchTranscriptions();
     } catch (err) {
@@ -396,29 +336,25 @@ function App() {
       setError('Please log in to edit transcriptions');
       return;
     }
-
     if (!editText.trim()) {
       setError('Transcription text cannot be empty');
       return;
     }
-
     try {
       setLoading(true);
       console.log('Updating transcription:', id);
-      
       const response = await axios.put(`http://localhost:3000/transcriptions/${id}`, {
         transcription: editText.trim(),
       }, {
         headers: { Authorization: `Bearer ${user.access_token}` },
       });
-
       setPastTranscriptions(pastTranscriptions.map((t) =>
         t.id === id ? { ...t, transcription: response.data.data.transcription, updated_at: response.data.data.updated_at } : t
       ));
       console.log('Updated transcription:', id);
       setEditingId(null);
       setEditText('');
-      await fetchTranscriptions(); // Refresh to ensure pagination consistency
+      await fetchTranscriptions();
     } catch (err) {
       console.error('Update error:', err);
       setError('Failed to update transcription: ' + (err.response?.data?.details || err.message));
@@ -445,11 +381,9 @@ function App() {
       setError('No transcriptions to export');
       return;
     }
-
     try {
       const headers = ['ID', 'Filename', 'Transcription', 'Created At', 'Updated At'];
       const csvRows = [headers.join(',')];
-      
       pastTranscriptions.forEach((t) => {
         const row = [
           t.id,
@@ -460,11 +394,9 @@ function App() {
         ];
         csvRows.push(row.join(','));
       });
-
       const csvContent = csvRows.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      
       const link = document.createElement('a');
       link.setAttribute('href', url);
       link.setAttribute('download', `transcriptions_${Date.now()}.csv`);
@@ -472,7 +404,6 @@ function App() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
       console.log('Exported transcriptions to CSV');
     } catch (err) {
       console.error('Export error:', err);
@@ -482,7 +413,7 @@ function App() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page on new search
+    setCurrentPage(1);
   };
 
   const goToPreviousPage = () => {
@@ -498,185 +429,247 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <h1>Audio Transcription App</h1>
-      
-      {user ? (
-        <>
-          <div className="user-info">
-            <p>Welcome, {user.email}</p>
-            <button onClick={handleLogout} className="logout-btn" disabled={loading}>
-              <FaSignOutAlt /> {loading ? 'Logging out...' : 'Logout'}
-            </button>
-          </div>
+    <div className="min-h-screen bg-black text-white font-sans relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="holo-bg absolute inset-0 animate-holo"></div>
+        <div className="grid-bg absolute inset-0"></div>
+        <div className="particle-field absolute inset-0">
+          <DragonAnimation />
+        </div>
+      </div>
 
-          <div className="controls">
-            <input
-              type="file"
-              accept="audio/*,video/webm,video/mp4"
-              onChange={handleFileUpload}
-              style={{ display: 'none' }}
-              id="audio-upload"
-              ref={fileInputRef}
-              disabled={loading}
-            />
-            <button onClick={triggerFileInput} className="upload-btn" disabled={loading}>
-              <FaUpload /> Upload Audio
-            </button>
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={isRecording ? 'stop-btn' : 'record-btn'}
-              disabled={loading && !isRecording}
-            >
-              {isRecording ? <FaStop /> : <FaMicrophone />}
-              {isRecording ? ' Stop Recording' : ' Start Recording'}
-            </button>
-          </div>
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        <h1 className="text-5xl md:text-6xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600 animate-neon-glow">
+          Quantum Transcription Nexus
+        </h1>
 
-          {error && <div className="error">{error}</div>}
-          {loading && <div className="loading">Processing...</div>}
-
-          <div className="transcription-section">
-            <h2>Current Transcription</h2>
-            <div className="transcription-text">
-              {transcription || 'No transcription yet. Upload an audio file or start recording.'}
+        {user ? (
+          <>
+            <div className="user-panel mb-12 p-6 bg-gradient-to-r from-gray-900/80 to-gray-800/80 rounded-xl border border-cyan-500/20 backdrop-blur-lg hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-500">
+              <div className="flex justify-between items-center">
+                <p className="text-lg text-cyan-300">Neural Operative: {user.email}</p>
+                <button
+                  onClick={handleLogout}
+                  className="holo-btn flex items-center px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading}
+                >
+                  <FaSignOutAlt className="mr-2" />
+                  {loading ? 'Disconnecting...' : 'Disconnect Nexus'}
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="past-transcriptions">
-            <h2>Past Transcriptions ({pastTranscriptions.length})</h2>
-            {pastTranscriptions.length > 0 ? (
-              <>
-                <div className="search-container">
+            <div className="controls grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+              <input
+                type="file"
+                accept="audio/*,video/webm,video/mp4"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="audio-upload"
+                ref={fileInputRef}
+                disabled={loading}
+              />
+              <button
+                onClick={triggerFileInput}
+                className="holo-btn flex items-center justify-center px-8 py-4 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                <FaUpload className="mr-2 animate-pulse" /> Upload Data Stream
+              </button>
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`holo-btn flex items-center justify-center px-8 py-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${isRecording ? 'bg-red-600/20 hover:bg-red-600/40 border-red-500/50 hover:shadow-red-500/30' : 'bg-green-600/20 hover:bg-green-600/40 border-green-500/50 hover:shadow-green-500/30'}`}
+                disabled={loading && !isRecording}
+              >
+                {isRecording ? <FaStop className="mr-2 animate-pulse" /> : <FaMicrophone className="mr-2 animate-pulse" />}
+                {isRecording ? 'Terminate Stream' : 'Initiate Audio Capture'}
+              </button>
+            </div>
+
+            {error && (
+              <div className="mb-12 p-6 bg-red-900/20 border border-red-500/50 rounded-xl text-red-300 animate-error-pulse backdrop-blur-lg">
+                {error}
+              </div>
+            )}
+            {loading && (
+              <div className="mb-12 p-6 bg-cyan-900/20 border border-cyan-500/50 rounded-xl text-cyan-300 flex items-center justify-center backdrop-blur-lg">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500 mr-3"></div>
+                Processing Data Stream...
+              </div>
+            )}
+
+            <div className="transcription-section mb-16">
+              <h2 className="text-3xl font-semibold mb-6 text-cyan-400 animate-neon-glow">Active Data Transcription</h2>
+              <div className="p-8 bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-xl border border-cyan-500/20 backdrop-blur-lg min-h-[200px] transition-all duration-500 hover:shadow-2xl hover:shadow-cyan-500/10 transform hover:-translate-y-1">
+                {transcription || 'No transcription data. Initialize capture or upload stream.'}
+              </div>
+            </div>
+
+            <div className="past-transcriptions">
+              <h2 className="text-3xl font-semibold mb-6 text-cyan-400 animate-neon-glow">Data Archives ({pastTranscriptions.length})</h2>
+              <div className="flex flex-col md:flex-row gap-6 mb-8">
+                <div className="relative flex-grow">
                   <input
                     type="text"
-                    placeholder="Search transcriptions..."
+                    placeholder="Query Data Archives..."
                     value={searchQuery}
                     onChange={handleSearch}
-                    className="search-input"
-                    disabled={loading}
+                    className="search-input w-full p-4 pl-12 bg-gray-900/50 border border-cyan-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-gray-400 transition-all duration-300"
+                    disabled={searchLoading}
                   />
-                  <FaSearch className="search-icon" />
+                  <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-400 ${searchLoading ? 'animate-spin' : 'animate-pulse'}`} />
                 </div>
-                <button onClick={exportToCSV} className="export-btn" disabled={loading}>
-                  <FaFileExport /> Export as CSV
+                <button
+                  onClick={exportToCSV}
+                  className="holo-btn flex items-center px-8 py-4 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading}
+                >
+                  <FaFileExport className="mr-2 animate-pulse" /> Export Data Matrix
                 </button>
-                <ul className="transcriptions-list">
-                  {pastTranscriptions.map((t) => (
-                    <li key={t.id} className="transcription-item">
-                      <div className="transcription-header">
-                        <strong>{t.filename}</strong>
-                        <span className="transcription-date">
-                          {new Date(t.created_at).toLocaleString()}
-                          {t.updated_at && ` (Updated: ${new Date(t.updated_at).toLocaleString()})`}
-                        </span>
-                      </div>
-                      {editingId === t.id ? (
-                        <div className="edit-container">
-                          <textarea
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            className="edit-textarea"
-                            disabled={loading}
-                          />
-                          <div className="edit-buttons">
+              </div>
+              {pastTranscriptions.length > 0 ? (
+                <>
+                  <ul className="space-y-6">
+                    {pastTranscriptions.map((t) => (
+                      <li
+                        key={t.id}
+                        className="p-8 bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-xl border border-cyan-500/20 backdrop-blur-lg transition-all duration-500 hover:shadow-2xl hover:shadow-cyan-500/10 transform hover:-translate-y-1"
+                      >
+                        <div className="transcription-header flex justify-between items-center mb-6">
+                          <strong className="text-cyan-400 text-lg">{t.filename}</strong>
+                          <span className="text-gray-400 text-sm">
+                            {new Date(t.created_at).toLocaleString()}
+                            {t.updated_at && ` (Updated: ${new Date(t.updated_at).toLocaleString()})`}
+                          </span>
+                        </div>
+                        {editingId === t.id ? (
+                          <div className="edit-container">
+                            <textarea
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              className="w-full p-4 bg-gray-900/50 border border-cyan-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white min-h-[120px] transition-all duration-300"
+                              disabled={loading}
+                            />
+                            <div className="edit-buttons flex gap-4 mt-6">
+                              <button
+                                onClick={() => saveEditing(t.id)}
+                                className="holo-btn flex items-center px-6 py-3 bg-green-600/20 hover:bg-green-600/40 border border-green-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={loading || !editText.trim()}
+                              >
+                                <FaSave className="mr-2 animate-pulse" /> Save
+                              </button>
+                              <button
+                                onClick={cancelEditing}
+                                className="holo-btn flex items-center px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={loading}
+                              >
+                                <FaTimes className="mr-2 animate-pulse" /> Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="transcription-content flex justify-between items-start">
+                            <div className="flex-1 text-gray-200">{t.transcription}</div>
                             <button
-                              onClick={() => saveEditing(t.id)}
-                              className="save-btn"
-                              disabled={loading || !editText.trim()}
-                            >
-                              <FaSave /> Save
-                            </button>
-                            <button
-                              onClick={cancelEditing}
-                              className="cancel-btn"
+                              onClick={() => startEditing(t.id, t.transcription)}
+                              className="holo-btn flex items-center px-6 py-3 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed ml-4"
                               disabled={loading}
                             >
-                              <FaTimes /> Cancel
+                              <FaEdit className="mr-2 animate-pulse" /> Modify
                             </button>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="transcription-content">
-                          {t.transcription}
-                          <button
-                            onClick={() => startEditing(t.id, t.transcription)}
-                            className="edit-btn"
-                            disabled={loading}
-                          >
-                            <FaEdit /> Edit
-                          </button>
-                        </div>
-                      )}
-                      <button
-                        onClick={() => handleDeleteTranscription(t.id)}
-                        className="delete-btn"
-                        disabled={loading}
-                      >
-                        <FaTrash /> Delete
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="pagination">
-                  <button
-                    onClick={goToPreviousPage}
-                    className="pagination-btn"
-                    disabled={loading || currentPage === 1}
-                  >
-                    <FaArrowLeft /> Previous
-                  </button>
-                  <span className="pagination-info">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    onClick={goToNextPage}
-                    className="pagination-btn"
-                    disabled={loading || currentPage === totalPages}
-                  >
-                    Next <FaArrowRight />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p>No past transcriptions available. Upload an audio file to get started!</p>
+                        )}
+                        <button
+                          onClick={() => handleDeleteTranscription(t.id)}
+                          className="holo-btn flex items-center px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={loading}
+                        >
+                          <FaTrash className="mr-2 animate-pulse" /> Delete
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="pagination flex justify-center items-center gap-6 mt-12">
+                    <button
+                      onClick={goToPreviousPage}
+                      className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={searchLoading || currentPage === 1}
+                    >
+                      <FaArrowLeft className="mr-2 animate-pulse" /> Previous Node
+                    </button>
+                    <span className="text-cyan-400 animate-neon-glow">
+                      Node {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={goToNextPage}
+                      className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={searchLoading || currentPage === totalPages}
+                    >
+                      Next Node <FaArrowRight className="ml-2 animate-pulse" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-400 animate-pulse">No archived data streams. Initialize capture or upload to begin.</p>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="auth-form max-w-lg mx-auto p-8 bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-xl border border-cyan-500/20 backdrop-blur-lg transform hover:-translate-y-2 transition-all duration-500">
+            <h2 className="text-3xl font-semibold mb-8 text-cyan-400 animate-neon-glow">Access Quantum Nexus</h2>
+            <div className="form-inputs space-y-6">
+              <input
+                type="email"
+                placeholder="Neural Id (Email)"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-4 bg-gray-900/50 border border-cyan-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-gray-400 transition-all duration-300 transform hover:-translate-y-1"
+                disabled={loading}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-4 bg-gray-900/50 border border-cyan-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-gray-400 transition-all duration-300 transform hover:-translate-y-1"
+                disabled={loading}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+              />
+            </div>
+            <div className="form-buttons flex flex-col gap-4 mt-8">
+              <button
+                onClick={handleLogin}
+                className="holo-btn flex items-center justify-center px-8 py-4 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                <FaSignInAlt className="mr-2 animate-pulse" />
+                {loading ? 'Accessing...' : 'Login Nexus'}
+              </button>
+              <button
+                onClick={handleSignUp}
+                className="holo-btn flex items-center justify-center px-8 py-4 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                <FaSignInAlt className="mr-2 animate-pulse" />
+                {loading ? 'Registering...' : 'Register Operative'}
+              </button>
+              <button
+                onClick={handleGoogleLogin}
+                className="holo-btn flex items-center justify-center px-8 py-4 bg-gray-700/50 hover:bg-gray-700/70 border border-gray-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-gray-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                <FaGoogle className="mr-2 animate-pulse" />
+                {loading ? 'Accessing...' : 'Access via Google'}
+              </button>
+            </div>
+            {error && (
+              <div className="mt-8 p-6 bg-red-900/20 border border-red-500/50 rounded-xl text-red-300 animate-error-pulse backdrop-blur-lg">
+                {error}
+              </div>
             )}
           </div>
-        </>
-      ) : (
-        <div className="auth-form">
-          <h2>Login or Sign Up</h2>
-          <div className="form-inputs">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-            />
-          </div>
-          <div className="form-buttons">
-            <button onClick={handleLogin} className="login-btn" disabled={loading}>
-              <FaSignInAlt /> {loading ? 'Logging in...' : 'Login'}
-            </button>
-            <button onClick={handleSignUp} className="signup-btn" disabled={loading}>
-              <FaSignInAlt /> {loading ? 'Signing up...' : 'Sign Up'}
-            </button>
-            <button onClick={handleGoogleLogin} className="google-btn" disabled={loading}>
-              <FaGoogle /> {loading ? 'Logging in...' : 'Sign in with Google'}
-            </button>
-          </div>
-          {error && <div className="error">{error}</div>}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

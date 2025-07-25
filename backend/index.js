@@ -21,7 +21,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Enable CORS with specific headers
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: 'https://audio-transcription-app-one.vercel.app',
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));

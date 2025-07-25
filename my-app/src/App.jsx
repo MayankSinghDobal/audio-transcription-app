@@ -162,27 +162,30 @@ function App() {
   };
 
   const handleGoogleLogin = async () => {
-    try {
-      setError('');
-      setLoading(true);
-      console.log('Attempting Google login');
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'https://audio-transcription-app-one.vercel.app/'
+  try {
+    setError('');
+    setLoading(true);
+    console.log('Attempting Google login');
+    
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'https://audio-transcription-app-one.vercel.app/',
+        queryParams: {
+          prompt: 'select_account'
         }
-      });
-      
-      if (error) throw error;
-      console.log('Google login initiated');
-    } catch (err) {
-      console.error('Google login error:', err);
-      setError('Google login failed: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      }
+    });
+    
+    if (error) throw error;
+    console.log('Google login initiated');
+  } catch (err) {
+    console.error('Google login error:', err);
+    setError('Google login failed: ' + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLogout = async () => {
     try {

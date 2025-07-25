@@ -8,7 +8,7 @@ const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Initialize Supabase with service role key for backend operations
 const supabaseUrl = process.env.SUPABASE_URL;

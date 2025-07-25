@@ -17,7 +17,6 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,11 +30,13 @@ function App() {
   const audioChunksRef = useRef([]);
   const fileInputRef = useRef(null);
 
+  // Check and refresh user session on mount
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
+        
         if (session?.user && session?.access_token) {
           setUser({ ...session.user, access_token: session.access_token });
           console.log('Session checked:', session.user.email, 'Token exists:', !!session.access_token);
@@ -52,6 +53,7 @@ function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event);
+      
       if (session?.user && session?.access_token) {
         setUser({ ...session.user, access_token: session.access_token });
         console.log('Auth state changed:', event, session.user.email, 'Token exists:', !!session.access_token);
@@ -64,6 +66,7 @@ function App() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
+  // Fetch past transcriptions when user, search query, or page changes
   useEffect(() => {
     if (user && user.access_token) {
       fetchTranscriptions();
@@ -76,12 +79,17 @@ function App() {
 
   const fetchTranscriptions = async () => {
     if (!user?.access_token) return;
+    
     try {
-      setSearchLoading(true);
+      setLoading(true);
       console.log('Fetching transcriptions with query:', searchQuery, 'page:', currentPage);
-      const response = await axios.get('http://localhost:3000/transcriptions', {
+      const response = await axios.get('https://audio-transcription-backend-llwb.onrender.com/transcriptions', {
         headers: { Authorization: `Bearer ${user.access_token}` },
-        params: { query: searchQuery, page: currentPage, limit: itemsPerPage },
+        params: { 
+          query: searchQuery,
+          page: currentPage,
+          limit: itemsPerPage
+        },
       });
       setPastTranscriptions(response.data.data || []);
       setTotalPages(Math.max(1, Math.ceil((response.data.total || 0) / itemsPerPage)));
@@ -90,7 +98,7 @@ function App() {
       console.error('Error fetching transcriptions:', err);
       setError('Failed to fetch past transcriptions: ' + (err.response?.data?.details || err.message));
     } finally {
-      setSearchLoading(false);
+      setLoading(false);
     }
   };
 
@@ -99,12 +107,19 @@ function App() {
       setError('Please enter both email and password');
       return;
     }
+
     try {
       setError('');
       setLoading(true);
       console.log('Attempting login with:', email);
-      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email: email.trim(), 
+        password 
+      });
+      
       if (error) throw error;
+      
       console.log('Login successful, User:', data.user.email, 'Token exists:', !!data.session.access_token);
       setEmail('');
       setPassword('');
@@ -121,12 +136,19 @@ function App() {
       setError('Please enter both email and password');
       return;
     }
+
     try {
       setError('');
       setLoading(true);
       console.log('Attempting signup with:', email);
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      
+      const { data, error } = await supabase.auth.signUp({ 
+        email: email.trim(), 
+        password 
+      });
+      
       if (error) throw error;
+      
       console.log('Signup response:', data);
       setError('Sign-up successful! Check your email to confirm your account.');
       setEmail('');
@@ -144,10 +166,14 @@ function App() {
       setError('');
       setLoading(true);
       console.log('Attempting Google login');
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: 'http://localhost:5173' }
+        options: {
+          redirectTo: 'https://audio-transcription-app-one.vercel.app/'
+        }
       });
+      
       if (error) throw error;
       console.log('Google login initiated');
     } catch (err) {
@@ -187,39 +213,57 @@ function App() {
       setError('Please log in to record audio');
       return;
     }
+
     try {
       setError('');
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        } 
       });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       audioChunksRef.current = [];
+
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
+
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         console.log('Recording stopped, blob size:', audioBlob.size);
+        
         if (audioBlob.size === 0) {
           setError('Recording failed - no audio data captured');
           return;
         }
+
         const formData = new FormData();
         formData.append('audio', audioBlob, 'recording.webm');
+
         try {
           setLoading(true);
           setTranscription('Processing audio...');
           setError('');
+          
           console.log('Uploading recording...');
-          const response = await axios.post('http://localhost:3000/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.access_token}` },
+          const response = await axios.post('https://audio-transcription-backend-llwb.onrender.com/upload', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              Authorization: `Bearer ${user.access_token}`,
+            },
             timeout: 60000,
           });
+          
           setTranscription(response.data.transcription);
           console.log('Upload successful');
-          setCurrentPage(1);
+          setCurrentPage(1); // Reset to first page after new transcription
           await fetchTranscriptions();
         } catch (err) {
           console.error('Upload error:', err);
@@ -228,8 +272,10 @@ function App() {
         } finally {
           setLoading(false);
         }
+
         stream.getTracks().forEach(track => track.stop());
       };
+
       mediaRecorderRef.current.start(1000);
       setIsRecording(true);
       console.log('Recording started');
@@ -252,34 +298,45 @@ function App() {
       setError('Please log in to upload audio');
       return;
     }
+
     const file = event.target.files[0];
     if (!file) {
       console.log('No file selected');
       return;
     }
+
     console.log('Selected file:', file.name, file.type, 'Size:', file.size);
+
     if (file.size > 10 * 1024 * 1024) {
       setError('File too large. Maximum size is 10MB.');
       return;
     }
+
     const validTypes = ['audio/mpeg', 'audio/wav', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/flac', 'audio/aac', 'audio/m4a', 'video/webm', 'video/mp4'];
     if (!validTypes.includes(file.type)) {
       setError(`Unsupported file type: ${file.type}`);
       return;
     }
+
     const formData = new FormData();
     formData.append('audio', file);
+
     try {
       setLoading(true);
       setTranscription('Processing audio...');
       setError('');
-      const response = await axios.post('http://localhost:3000/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.access_token}` },
+      
+      const response = await axios.post('https://audio-transcription-backend-llwb.onrender.com/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${user.access_token}`,
+        },
         timeout: 60000,
       });
+      
       console.log('Upload response:', response.data);
       setTranscription(response.data.transcription);
-      setCurrentPage(1);
+      setCurrentPage(1); // Reset to first page after new transcription
       await fetchTranscriptions();
     } catch (err) {
       console.error('Upload error:', err);
@@ -298,19 +355,23 @@ function App() {
       setError('Please log in to delete transcriptions');
       return;
     }
+
     if (!window.confirm('Are you sure you want to delete this transcription?')) {
       return;
     }
+
     try {
       setLoading(true);
       console.log('Deleting transcription:', id);
-      const response = await axios.delete(`http://localhost:3000/transcriptions/${id}`, {
+      
+      await axios.delete(`https://audio-transcription-backend-llwb.onrender.com/transcriptions/${id}`, {
         headers: { Authorization: `Bearer ${user.access_token}` },
       });
+      
       setPastTranscriptions(pastTranscriptions.filter((t) => t.id !== id));
       console.log('Deleted transcription:', id);
       if (pastTranscriptions.length <= 1 && currentPage > 1) {
-        setCurrentPage(currentPage - 1);
+        setCurrentPage(currentPage - 1); // Go to previous page if current page is empty
       }
       await fetchTranscriptions();
     } catch (err) {
@@ -336,25 +397,29 @@ function App() {
       setError('Please log in to edit transcriptions');
       return;
     }
+
     if (!editText.trim()) {
       setError('Transcription text cannot be empty');
       return;
     }
+
     try {
       setLoading(true);
       console.log('Updating transcription:', id);
-      const response = await axios.put(`http://localhost:3000/transcriptions/${id}`, {
+      
+      const response = await axios.put(`https://audio-transcription-backend-llwb.onrender.com/transcriptions/${id}`, {
         transcription: editText.trim(),
       }, {
         headers: { Authorization: `Bearer ${user.access_token}` },
       });
+
       setPastTranscriptions(pastTranscriptions.map((t) =>
         t.id === id ? { ...t, transcription: response.data.data.transcription, updated_at: response.data.data.updated_at } : t
       ));
       console.log('Updated transcription:', id);
       setEditingId(null);
       setEditText('');
-      await fetchTranscriptions();
+      await fetchTranscriptions(); // Refresh to ensure pagination consistency
     } catch (err) {
       console.error('Update error:', err);
       setError('Failed to update transcription: ' + (err.response?.data?.details || err.message));
@@ -381,9 +446,11 @@ function App() {
       setError('No transcriptions to export');
       return;
     }
+
     try {
       const headers = ['ID', 'Filename', 'Transcription', 'Created At', 'Updated At'];
       const csvRows = [headers.join(',')];
+      
       pastTranscriptions.forEach((t) => {
         const row = [
           t.id,
@@ -394,9 +461,11 @@ function App() {
         ];
         csvRows.push(row.join(','));
       });
+
       const csvContent = csvRows.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
+      
       const link = document.createElement('a');
       link.setAttribute('href', url);
       link.setAttribute('download', `transcriptions_${Date.now()}.csv`);
@@ -404,6 +473,7 @@ function App() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
       console.log('Exported transcriptions to CSV');
     } catch (err) {
       console.error('Export error:', err);
@@ -413,7 +483,7 @@ function App() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page on new search
   };
 
   const goToPreviousPage = () => {
@@ -515,9 +585,9 @@ function App() {
                     value={searchQuery}
                     onChange={handleSearch}
                     className="search-input w-full p-4 pl-12 bg-gray-900/50 border border-cyan-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-gray-400 transition-all duration-300"
-                    disabled={searchLoading}
+                    disabled={loading}
                   />
-                  <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-400 ${searchLoading ? 'animate-spin' : 'animate-pulse'}`} />
+                  <FaSearch className={`absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-400 ${loading ? 'animate-spin' : 'animate-pulse'}`} />
                 </div>
                 <button
                   onClick={exportToCSV}
@@ -593,7 +663,7 @@ function App() {
                     <button
                       onClick={goToPreviousPage}
                       className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={searchLoading || currentPage === 1}
+                      disabled={loading || currentPage === 1}
                     >
                       <FaArrowLeft className="mr-2 animate-pulse" /> Previous Node
                     </button>
@@ -603,7 +673,7 @@ function App() {
                     <button
                       onClick={goToNextPage}
                       className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={searchLoading || currentPage === totalPages}
+                      disabled={loading || currentPage === totalPages}
                     >
                       Next Node <FaArrowRight className="ml-2 animate-pulse" />
                     </button>

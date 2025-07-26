@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaSignInAlt, FaGoogle } from 'react-icons/fa';
 
-const AuthComponent = ({ supabase, user, setUser, loading, setError, error }) => { // Added supabase to props
+const AuthComponent = ({ supabase, user, setUser, loading, setLoading, setError, error }) => { // Added setLoading to props
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 

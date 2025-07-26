@@ -88,7 +88,11 @@ const ChineseDragonAnimation = () => {
       }
     }
 
-    const dragons = [new ChineseDragon(0.25, 0, ['#FFD700', '#FFA500']), new ChineseDragon(0.55, 3000, ['#FF0000', '#FF69B4'])];
+    const dragons = [
+      new ChineseDragon(0.25, 0, ['#FFD700', '#FFA500']),       // Gold dragon
+      new ChineseDragon(0.55, 3000, ['#FF0000', '#FF69B4']),    // Red dragon
+      new ChineseDragon(0.85, 6000, ['#00FF00', '#ADFF2F'])     // Green dragon (new third dragon)
+    ];
     const animate = (time) => {
       try {
         ctx.clearRect(0, 0, canvas.width, canvas.height);

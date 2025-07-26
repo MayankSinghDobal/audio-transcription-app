@@ -17,7 +17,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [transcription, setTranscription] = useState('');
   const [pastTranscriptions, setPastTranscriptions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Ensure this state is defined
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -74,12 +74,13 @@ function App() {
         <h1 className="text-5xl md:text-6xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600 animate-neon-glow">
           Quantum Transcription Nexus
         </h1>
-        <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setError={setError} error={error} /> {/* Added supabase prop */}
+        <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} /> {/* Added setLoading prop */}
         {user && (
           <>
             <TranscriptionControls
               user={user}
               loading={loading}
+              setLoading={setLoading} // Pass to TranscriptionControls if needed
               setTranscription={setTranscription}
               setError={setError}
               fetchTranscriptions={fetchTranscriptions}
@@ -101,6 +102,7 @@ function App() {
               user={user}
               pastTranscriptions={pastTranscriptions}
               loading={loading}
+              setLoading={setLoading} // Pass to TranscriptionList if needed
               setError={setError}
               currentPage={currentPage}
               totalPages={totalPages}

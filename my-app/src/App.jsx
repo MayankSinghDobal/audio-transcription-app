@@ -65,6 +65,21 @@ function App() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      setTranscription('');
+      setPastTranscriptions([]);
+      setError('');
+    } catch (err) {
+      setError('Logout failed: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white font-sans relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
@@ -83,7 +98,17 @@ function App() {
         {!user ? (
           <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} />
         ) : (
-          <>
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-cyan-400">Logged in as: {user.email}</span>
+              <button
+                onClick={handleLogout}
+                className="holo-btn px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                Logout
+              </button>
+            </div>
             <TranscriptionControls
               user={user}
               loading={loading}
@@ -115,7 +140,7 @@ function App() {
               totalPages={totalPages}
               setCurrentPage={setCurrentPage}
             />
-          </>
+          </div>
         )}
       </div>
     </div>

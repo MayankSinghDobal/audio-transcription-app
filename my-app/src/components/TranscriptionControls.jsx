@@ -30,14 +30,14 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
             headers: { Authorization: `Bearer ${user.access_token}` },
             body: formData,
           });
-          if (!response.ok) throw new Error(`Transcription failed: ${response.statusText}`);
+          if (!response.ok) throw new Error(`Transcription failed: ${response.status} - ${response.statusText}`);
           const data = await response.json();
           setTranscription(data.transcription || 'No transcription returned');
           fetchTranscriptions();
           setCurrentPage(1);
         } catch (err) {
           setError('Failed to transcribe audio: ' + err.message);
-          console.error('Transcription error:', err);
+          console.error('Transcription error:', err, 'Response:', await response?.text());
         }
       };
 
@@ -77,14 +77,14 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
         headers: { Authorization: `Bearer ${user.access_token}` },
         body: formData,
       });
-      if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
+      if (!response.ok) throw new Error(`Upload failed: ${response.status} - ${response.statusText}`);
       const data = await response.json();
       setTranscription(data.transcription || 'No transcription returned');
       fetchTranscriptions();
       setCurrentPage(1);
     } catch (err) {
       setError('Failed to upload audio: ' + err.message);
-      console.error('Upload error:', err);
+      console.error('Upload error:', err, 'Response:', await response?.text());
     } finally {
       setLoading(false);
     }

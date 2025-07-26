@@ -63,7 +63,7 @@ const ChineseDragonAnimation = () => {
           ctx.beginPath(); ctx.moveTo(this.segments[0].x, this.segments[0].y); for (let i = 1; i < this.length; i++) ctx.lineTo(this.segments[i].x, this.segments[i].y); ctx.stroke();
           ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
           for (let i = 0; i < this.length; i++) {
-            const seg = this.segments[i], radius = Math.max(0, 15 * seg.scale); // Clamp radius to 0
+            const seg = this.segments[i], radius = Math.max(0, 15 * seg.scale);
             if (i === this.length - 1) { ctx.beginPath(); ctx.moveTo(seg.x, seg.y - radius); ctx.lineTo(seg.x - radius * 1.5, seg.y + radius); ctx.lineTo(seg.x + radius * 1.5, seg.y + radius); ctx.closePath(); ctx.fillStyle = this.colors[0]; ctx.fill(); }
             else { ctx.beginPath(); ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2); ctx.fillStyle = this.colors[0]; ctx.fill(); ctx.beginPath(); ctx.arc(seg.x - 3, seg.y - 3, Math.max(0, radius * 0.4), 0, Math.PI * 2); ctx.fillStyle = this.colors[1]; ctx.fill(); }
           }

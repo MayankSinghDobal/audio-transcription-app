@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaSignInAlt, FaGoogle } from 'react-icons/fa';
 
-const AuthComponent = ({ user, setUser, loading, setError }) => {
+const AuthComponent = ({ user, setUser, loading, setError, error }) => { // Added 'error' to props
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -11,10 +11,10 @@ const AuthComponent = ({ user, setUser, loading, setError }) => {
       return;
     }
     try {
-      setError('');
+      setError(''); // Clear previous error
       setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) throw error;
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (authError) throw authError;
       setUser({ ...data.user, access_token: data.session.access_token });
       setEmail('');
       setPassword('');
@@ -31,10 +31,10 @@ const AuthComponent = ({ user, setUser, loading, setError }) => {
       return;
     }
     try {
-      setError('');
+      setError(''); // Clear previous error
       setLoading(true);
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
-      if (error) throw error;
+      const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (authError) throw authError;
       setError('Sign-up successful! Check your email to confirm your account.');
       setEmail('');
       setPassword('');
@@ -47,13 +47,13 @@ const AuthComponent = ({ user, setUser, loading, setError }) => {
 
   const handleGoogleLogin = async () => {
     try {
-      setError('');
+      setError(''); // Clear previous error
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: 'https://audio-transcription-app-one.vercel.app/', queryParams: { prompt: 'select_account' } },
       });
-      if (error) throw error;
+      if (authError) throw authError;
     } catch (err) {
       setError('Google login failed: ' + err.message);
     } finally {
@@ -109,7 +109,7 @@ const AuthComponent = ({ user, setUser, loading, setError }) => {
           {loading ? 'Accessing...' : 'Access via Google'}
         </button>
       </div>
-      {error && (
+      {error && ( // Use the 'error' prop here
         <div className="mt-8 p-6 bg-red-900/20 border border-red-500/50 rounded-xl text-red-300 animate-error-pulse backdrop-blur-lg">
           {error}
         </div>

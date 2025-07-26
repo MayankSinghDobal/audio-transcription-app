@@ -5,7 +5,6 @@ import AuthComponent from './components/AuthComponent';
 import TranscriptionControls from './components/TranscriptionControls';
 import TranscriptionDisplay from './components/TranscriptionDisplay';
 import TranscriptionList from './components/TranscriptionList';
-import DragonAnimation from './DragonAnimation';
 import './App.css';
 
 const supabase = createClient(
@@ -64,9 +63,11 @@ function App() {
       <div className="absolute inset-0 pointer-events-none">
         <div className="holo-bg absolute inset-0 animate-holo"></div>
         <div className="grid-bg absolute inset-0"></div>
-        <div className="particle-field absolute inset-0">
-          <DragonAnimation />
-        </div>
+        {window.innerWidth > 768 && (
+          <div className="particle-field absolute inset-0">
+            <DragonAnimation />
+          </div>
+        )}
       </div>
       <div className="container mx-auto px-4 py-8 relative z-10">
         <h1 className="text-5xl md:text-6xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600 animate-neon-glow">

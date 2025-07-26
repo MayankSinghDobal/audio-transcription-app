@@ -80,7 +80,6 @@ input[type="email"]:focus, input[type="password"]:focus { transform: scale(1.02)
 .animate-neon-glow { animation: neon-glow 2s ease-in-out infinite; }
 .animate-error-pulse { animation: error-pulse 2s ease-in-out infinite; }
 
-/* Mobile-specific adjustments */
 @media (max-width: 768px) {
   .container { padding: 1rem; }
   h1 { font-size: 2rem; margin-bottom: 1rem; }
@@ -95,4 +94,5 @@ input[type="email"]:focus, input[type="password"]:focus { transform: scale(1.02)
   .user-panel { padding: 1rem; }
   .form-inputs input { padding: 0.75rem; }
   .form-buttons button { padding: 0.75rem; font-size: 0.9rem; }
+  .particle-field canvas { display: none; }
 }

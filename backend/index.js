@@ -109,10 +109,8 @@ app.get('/transcriptions', authenticate, async (req, res) => {
     const limitNum = parseInt(limit, 10);
     console.log('Fetching transcriptions for user:', req.user.sub, 'with query:', query, 'page:', pageNum, 'limit:', limitNum);
     
-    // Calculate offset
     const offset = (pageNum - 1) * limitNum;
 
-    // Build query
     let supabaseQuery = supabaseAdmin
       .from('transcriptions')
       .select('id, filename, transcription, created_at, updated_at', { count: 'exact' })
@@ -124,7 +122,6 @@ app.get('/transcriptions', authenticate, async (req, res) => {
       supabaseQuery = supabaseQuery.or(`filename.ilike.${searchPattern},transcription.ilike.${searchPattern}`);
     }
 
-    // Apply pagination
     supabaseQuery = supabaseQuery.range(offset, offset + limitNum - 1);
 
     const { data, error, count } = await supabaseQuery;
@@ -311,7 +308,7 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Server running on port ${port}`);
   console.log('Environment variables check:');
   console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Not set');
   console.log('SUPABASE_KEY:', process.env.SUPABASE_KEY ? 'Set' : 'Not set');

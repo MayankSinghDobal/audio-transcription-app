@@ -59,7 +59,7 @@ function App() {
       setTotalPages(Math.max(1, Math.ceil((response.data.total || 0) / itemsPerPage)));
     } catch (err) {
       setError('Failed to fetch transcriptions: ' + err.message);
-      console.error('Fetch error:', err);
+      console.error('Fetch error:', err.response ? err.response.data : err);
     } finally {
       setLoading(false);
     }
@@ -80,9 +80,10 @@ function App() {
         <h1 className="text-5xl md:text-6xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600 animate-neon-glow">
           Quantum Transcription Nexus
         </h1>
-        {user ? (
+        {!user ? (
+          <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} />
+        ) : (
           <>
-            <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} />
             <TranscriptionControls
               user={user}
               loading={loading}
@@ -115,8 +116,6 @@ function App() {
               setCurrentPage={setCurrentPage}
             />
           </>
-        ) : (
-          <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} />
         )}
       </div>
     </div>

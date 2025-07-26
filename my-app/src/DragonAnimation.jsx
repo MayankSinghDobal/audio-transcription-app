@@ -63,9 +63,9 @@ const ChineseDragonAnimation = () => {
           ctx.beginPath(); ctx.moveTo(this.segments[0].x, this.segments[0].y); for (let i = 1; i < this.length; i++) ctx.lineTo(this.segments[i].x, this.segments[i].y); ctx.stroke();
           ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
           for (let i = 0; i < this.length; i++) {
-            const seg = this.segments[i], radius = 15 * seg.scale;
+            const seg = this.segments[i], radius = Math.max(0, 15 * seg.scale); // Clamp radius to 0
             if (i === this.length - 1) { ctx.beginPath(); ctx.moveTo(seg.x, seg.y - radius); ctx.lineTo(seg.x - radius * 1.5, seg.y + radius); ctx.lineTo(seg.x + radius * 1.5, seg.y + radius); ctx.closePath(); ctx.fillStyle = this.colors[0]; ctx.fill(); }
-            else { ctx.beginPath(); ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2); ctx.fillStyle = this.colors[0]; ctx.fill(); ctx.beginPath(); ctx.arc(seg.x - 3, seg.y - 3, radius * 0.4, 0, Math.PI * 2); ctx.fillStyle = this.colors[1]; ctx.fill(); }
+            else { ctx.beginPath(); ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2); ctx.fillStyle = this.colors[0]; ctx.fill(); ctx.beginPath(); ctx.arc(seg.x - 3, seg.y - 3, Math.max(0, radius * 0.4), 0, Math.PI * 2); ctx.fillStyle = this.colors[1]; ctx.fill(); }
           }
           const head = this.segments[0];
           ctx.shadowColor = this.colors[1]; ctx.shadowBlur = 15; ctx.beginPath(); ctx.ellipse(head.x, head.y, 25, 18, 0, 0, Math.PI * 2); ctx.fillStyle = this.colors[0]; ctx.fill();
@@ -89,9 +89,9 @@ const ChineseDragonAnimation = () => {
     }
 
     const dragons = [
-      new ChineseDragon(0.25, 0, ['#FFD700', '#FFA500']),       // Gold dragon
-      new ChineseDragon(0.55, 3000, ['#FF0000', '#FF69B4']),    // Red dragon
-      new ChineseDragon(0.85, 6000, ['#00FF00', '#ADFF2F'])     // Green dragon (new third dragon)
+      new ChineseDragon(0.25, 0, ['#FFD700', '#FFA500']),
+      new ChineseDragon(0.55, 3000, ['#FF0000', '#FF69B4']),
+      new ChineseDragon(0.85, 6000, ['#00FF00', '#ADFF2F'])
     ];
     const animate = (time) => {
       try {

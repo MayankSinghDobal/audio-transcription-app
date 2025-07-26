@@ -30,13 +30,14 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
             headers: { Authorization: `Bearer ${user.access_token}` },
             body: formData,
           });
-          if (!response.ok) throw new Error('Transcription failed');
+          if (!response.ok) throw new Error(`Transcription failed: ${response.statusText}`);
           const data = await response.json();
-          setTranscription(data.transcription);
+          setTranscription(data.transcription || 'No transcription returned');
           fetchTranscriptions();
           setCurrentPage(1);
         } catch (err) {
           setError('Failed to transcribe audio: ' + err.message);
+          console.error('Transcription error:', err);
         }
       };
 
@@ -44,6 +45,7 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
       setIsRecording(true);
     } catch (err) {
       setError('Microphone access denied or recording failed: ' + err.message);
+      console.error('Recording error:', err);
     } finally {
       setLoading(false);
     }
@@ -75,13 +77,14 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
         headers: { Authorization: `Bearer ${user.access_token}` },
         body: formData,
       });
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
       const data = await response.json();
-      setTranscription(data.transcription);
+      setTranscription(data.transcription || 'No transcription returned');
       fetchTranscriptions();
       setCurrentPage(1);
     } catch (err) {
       setError('Failed to upload audio: ' + err.message);
+      console.error('Upload error:', err);
     } finally {
       setLoading(false);
     }

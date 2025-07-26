@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaSignInAlt, FaGoogle } from 'react-icons/fa';
 
-const AuthComponent = ({ user, setUser, loading, setError, error }) => { // Added 'error' to props
+const AuthComponent = ({ supabase, user, setUser, loading, setError, error }) => { // Added supabase to props
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -11,7 +11,7 @@ const AuthComponent = ({ user, setUser, loading, setError, error }) => { // Adde
       return;
     }
     try {
-      setError(''); // Clear previous error
+      setError('');
       setLoading(true);
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (authError) throw authError;
@@ -31,7 +31,7 @@ const AuthComponent = ({ user, setUser, loading, setError, error }) => { // Adde
       return;
     }
     try {
-      setError(''); // Clear previous error
+      setError('');
       setLoading(true);
       const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password });
       if (authError) throw authError;
@@ -47,7 +47,7 @@ const AuthComponent = ({ user, setUser, loading, setError, error }) => { // Adde
 
   const handleGoogleLogin = async () => {
     try {
-      setError(''); // Clear previous error
+      setError('');
       setLoading(true);
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -109,7 +109,7 @@ const AuthComponent = ({ user, setUser, loading, setError, error }) => { // Adde
           {loading ? 'Accessing...' : 'Access via Google'}
         </button>
       </div>
-      {error && ( // Use the 'error' prop here
+      {error && (
         <div className="mt-8 p-6 bg-red-900/20 border border-red-500/50 rounded-xl text-red-300 animate-error-pulse backdrop-blur-lg">
           {error}
         </div>

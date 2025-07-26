@@ -5,7 +5,7 @@ import AuthComponent from './components/AuthComponent';
 import TranscriptionControls from './components/TranscriptionControls';
 import TranscriptionDisplay from './components/TranscriptionDisplay';
 import TranscriptionList from './components/TranscriptionList';
-import DragonAnimation from './DragonAnimation'; // Added this import
+import DragonAnimation from './DragonAnimation';
 import './App.css';
 
 const supabase = createClient(
@@ -74,7 +74,7 @@ function App() {
         <h1 className="text-5xl md:text-6xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600 animate-neon-glow">
           Quantum Transcription Nexus
         </h1>
-        <AuthComponent user={user} setUser={setUser} loading={loading} setError={setError} />
+        <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setError={setError} error={error} /> {/* Added supabase prop */}
         {user && (
           <>
             <TranscriptionControls

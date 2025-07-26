@@ -17,7 +17,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [transcription, setTranscription] = useState('');
   const [pastTranscriptions, setPastTranscriptions] = useState([]);
-  const [loading, setLoading] = useState(false); // Ensure this state is defined
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -26,12 +26,17 @@ function App() {
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      setUser(session?.user && session?.access_token ? { ...session.user, access_token: session.access_token } : null);
+      if (error) {
+        console.error('Session check error:', error);
+        setError('Session check failed: ' + error.message);
+      } else {
+        setUser(session?.user && session?.access_token ? { ...session.user, access_token: session.access_token } : null);
+      }
     };
     checkSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session);
       setUser(session?.user && session?.access_token ? { ...session.user, access_token: session.access_token } : null);
     });
 
@@ -54,6 +59,7 @@ function App() {
       setTotalPages(Math.max(1, Math.ceil((response.data.total || 0) / itemsPerPage)));
     } catch (err) {
       setError('Failed to fetch transcriptions: ' + err.message);
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -74,13 +80,13 @@ function App() {
         <h1 className="text-5xl md:text-6xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600 animate-neon-glow">
           Quantum Transcription Nexus
         </h1>
-        <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} /> {/* Added setLoading prop */}
-        {user && (
+        {user ? (
           <>
+            <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} />
             <TranscriptionControls
               user={user}
               loading={loading}
-              setLoading={setLoading} // Pass to TranscriptionControls if needed
+              setLoading={setLoading}
               setTranscription={setTranscription}
               setError={setError}
               fetchTranscriptions={fetchTranscriptions}
@@ -102,13 +108,15 @@ function App() {
               user={user}
               pastTranscriptions={pastTranscriptions}
               loading={loading}
-              setLoading={setLoading} // Pass to TranscriptionList if needed
+              setLoading={setLoading}
               setError={setError}
               currentPage={currentPage}
               totalPages={totalPages}
               setCurrentPage={setCurrentPage}
             />
           </>
+        ) : (
+          <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} />
         )}
       </div>
     </div>

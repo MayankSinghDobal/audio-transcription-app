@@ -2,18 +2,37 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { FaSearch, FaFileExport, FaEdit, FaTrash, FaSave, FaTimes, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 
-const TranscriptionList = ({ user, pastTranscriptions, loading, setError, currentPage, totalPages, setCurrentPage }) => {
+const TranscriptionList = ({ 
+  user, 
+  pastTranscriptions, 
+  loading, 
+  setLoading, 
+  setPastTranscriptions, 
+  setError, 
+  currentPage, 
+  totalPages, 
+  setCurrentPage,
+  searchQuery,
+  onSearch
+}) => {
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
 
   const handleDeleteTranscription = async (id) => {
     if (!window.confirm('Are you sure you want to delete this transcription?')) return;
     try {
       setLoading(true);
-      await axios.delete(`https://audio-transcription-backend-llwb.onrender.com/transcriptions/${id}`, { headers: { Authorization: `Bearer ${user.access_token}` } });
+      await axios.delete(`https://audio-transcription-backend-llwb.onrender.com/transcriptions/${id}`, { 
+        headers: { Authorization: `Bearer ${user.access_token}` } 
+      });
+      
+      // Update the local state to remove the deleted transcription
       setPastTranscriptions(pastTranscriptions.filter(t => t.id !== id));
-      if (pastTranscriptions.length <= 1 && currentPage > 1) setCurrentPage(currentPage - 1);
+      
+      // If this was the last item on the current page and we're not on page 1, go back a page
+      if (pastTranscriptions.length <= 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
     } catch (err) {
       setError('Failed to delete transcription: ' + err.message);
     } finally {
@@ -21,8 +40,16 @@ const TranscriptionList = ({ user, pastTranscriptions, loading, setError, curren
     }
   };
 
-  const startEditing = (id, text) => { setEditingId(id); setEditText(text); };
-  const cancelEditing = () => { setEditingId(null); setEditText(''); };
+  const startEditing = (id, text) => { 
+    setEditingId(id); 
+    setEditText(text); 
+  };
+
+  const cancelEditing = () => { 
+    setEditingId(null); 
+    setEditText(''); 
+  };
+
   const saveEditing = async (id) => {
     if (!editText.trim()) {
       setError('Transcription text cannot be empty');
@@ -30,8 +57,21 @@ const TranscriptionList = ({ user, pastTranscriptions, loading, setError, curren
     }
     try {
       setLoading(true);
-      const response = await axios.put(`https://audio-transcription-backend-llwb.onrender.com/transcriptions/${id}`, { transcription: editText.trim() }, { headers: { Authorization: `Bearer ${user.access_token}` } });
-      setPastTranscriptions(pastTranscriptions.map(t => t.id === id ? { ...t, transcription: response.data.data.transcription, updated_at: response.data.data.updated_at } : t));
+      const response = await axios.put(
+        `https://audio-transcription-backend-llwb.onrender.com/transcriptions/${id}`, 
+        { transcription: editText.trim() }, 
+        { headers: { Authorization: `Bearer ${user.access_token}` } }
+      );
+      
+      // Update the local state with the edited transcription
+      setPastTranscriptions(pastTranscriptions.map(t => 
+        t.id === id ? { 
+          ...t, 
+          transcription: response.data.data.transcription, 
+          updated_at: response.data.data.updated_at 
+        } : t
+      ));
+      
       setEditingId(null);
       setEditText('');
     } catch (err) {
@@ -70,29 +110,27 @@ const TranscriptionList = ({ user, pastTranscriptions, loading, setError, curren
     URL.revokeObjectURL(url);
   };
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
+  // FIXED: Search is now handled by parent component through onSearch prop
+  const handleSearchInput = (e) => {
+    const query = e.target.value;
+    onSearch(query); // Call the parent's search handler
   };
-
-  const filteredTranscriptions = pastTranscriptions.filter(t =>
-    t.transcription?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.filename?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const goToNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
   return (
     <div className="past-transcriptions">
-      <h2 className="text-3xl font-semibold mb-6 text-cyan-400 animate-neon-glow">Data Archives ({pastTranscriptions.length})</h2>
+      <h2 className="text-3xl font-semibold mb-6 text-cyan-400 animate-neon-glow">
+        Data Archives ({pastTranscriptions.length})
+      </h2>
       <div className="flex flex-col md:flex-row gap-6 mb-8">
         <div className="relative flex-grow">
           <input
             type="text"
             placeholder="Query Data Archives..."
             value={searchQuery}
-            onChange={handleSearch}
+            onChange={handleSearchInput}
             className="search-input w-full p-4 pl-12 bg-gray-900/50 border border-cyan-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-gray-400 transition-all duration-300"
             disabled={loading}
           />
@@ -101,20 +139,25 @@ const TranscriptionList = ({ user, pastTranscriptions, loading, setError, curren
         <button
           onClick={exportToCSV}
           className="holo-btn flex items-center px-8 py-4 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={loading}
+          disabled={loading || pastTranscriptions.length === 0}
         >
           <FaFileExport className="mr-2 animate-pulse" /> Export Data Matrix
         </button>
       </div>
-      {filteredTranscriptions.length > 0 ? (
+      
+      {pastTranscriptions.length > 0 ? (
         <>
           <ul className="space-y-6">
-            {filteredTranscriptions.map(t => (
+            {pastTranscriptions.map(t => (
               <li key={t.id} className="p-8 bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-xl border border-cyan-500/20 backdrop-blur-lg transition-all duration-500 hover:shadow-2xl hover:shadow-cyan-500/10 transform hover:-translate-y-1">
                 <div className="transcription-header flex justify-between items-center mb-6">
                   <strong className="text-cyan-400 text-lg">{t.filename}</strong>
-                  <span className="text-gray-400 text-sm">{new Date(t.created_at).toLocaleString()}{t.updated_at && ` (Updated: ${new Date(t.updated_at).toLocaleString()})`}</span>
+                  <span className="text-gray-400 text-sm">
+                    {new Date(t.created_at).toLocaleString()}
+                    {t.updated_at && ` (Updated: ${new Date(t.updated_at).toLocaleString()})`}
+                  </span>
                 </div>
+                
                 {editingId === t.id ? (
                   <div className="edit-container">
                     <textarea
@@ -141,47 +184,54 @@ const TranscriptionList = ({ user, pastTranscriptions, loading, setError, curren
                     </div>
                   </div>
                 ) : (
-                  <div className="transcription-content flex justify-between items-start">
-                    <div className="flex-1 text-gray-200">{t.transcription}</div>
+                  <div className="transcription-content">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1 text-gray-200 pr-4">{t.transcription}</div>
+                      <button
+                        onClick={() => startEditing(t.id, t.transcription)}
+                        className="holo-btn flex items-center px-6 py-3 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={loading}
+                      >
+                        <FaEdit className="mr-2 animate-pulse" /> Modify
+                      </button>
+                    </div>
                     <button
-                      onClick={() => startEditing(t.id, t.transcription)}
-                      className="holo-btn flex items-center px-6 py-3 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed ml-4"
+                      onClick={() => handleDeleteTranscription(t.id)}
+                      className="holo-btn flex items-center px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={loading}
                     >
-                      <FaEdit className="mr-2 animate-pulse" /> Modify
+                      <FaTrash className="mr-2 animate-pulse" /> Delete
                     </button>
                   </div>
                 )}
-                <button
-                  onClick={() => handleDeleteTranscription(t.id)}
-                  className="holo-btn flex items-center px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={loading}
-                >
-                  <FaTrash className="mr-2 animate-pulse" /> Delete
-                </button>
               </li>
             ))}
           </ul>
-          <div className="pagination flex justify-center items-center gap-6 mt-12">
-            <button
-              onClick={goToPreviousPage}
-              className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading || currentPage === 1}
-            >
-              <FaArrowLeft className="mr-2 animate-pulse" /> Previous Node
-            </button>
-            <span className="text-cyan-400 animate-neon-glow">Node {currentPage} / {totalPages}</span>
-            <button
-              onClick={goToNextPage}
-              className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading || currentPage === totalPages}
-            >
-              Next Node <FaArrowRight className="ml-2 animate-pulse" />
-            </button>
-          </div>
+          
+          {totalPages > 1 && (
+            <div className="pagination flex justify-center items-center gap-6 mt-12">
+              <button
+                onClick={goToPreviousPage}
+                className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || currentPage === 1}
+              >
+                <FaArrowLeft className="mr-2 animate-pulse" /> Previous Node
+              </button>
+              <span className="text-cyan-400 animate-neon-glow">Node {currentPage} / {totalPages}</span>
+              <button
+                onClick={goToNextPage}
+                className="holo-btn flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || currentPage === totalPages}
+              >
+                Next Node <FaArrowRight className="ml-2 animate-pulse" />
+              </button>
+            </div>
+          )}
         </>
       ) : (
-        <p className="text-gray-400 animate-pulse">No archived data streams. Initialize capture or upload to begin.</p>
+        <p className="text-gray-400 animate-pulse">
+          {searchQuery ? `No results found for "${searchQuery}"` : 'No archived data streams. Initialize capture or upload to begin.'}
+        </p>
       )}
     </div>
   );

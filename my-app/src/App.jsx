@@ -21,6 +21,7 @@ function App() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState(''); // Added searchQuery state
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -43,17 +44,28 @@ function App() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
+  // FIXED: Updated to include searchQuery in dependencies
   useEffect(() => {
     if (user?.access_token) fetchTranscriptions();
-  }, [user, currentPage]);
+  }, [user, currentPage, searchQuery]);
 
   const fetchTranscriptions = async () => {
     if (!user?.access_token) return;
     try {
       setLoading(true);
+      const params = { 
+        page: currentPage, 
+        limit: itemsPerPage 
+      };
+      
+      // Add search query if present
+      if (searchQuery.trim()) {
+        params.query = searchQuery.trim();
+      }
+
       const response = await axios.get('https://audio-transcription-backend-llwb.onrender.com/transcriptions', {
         headers: { Authorization: `Bearer ${user.access_token}` },
-        params: { page: currentPage, limit: itemsPerPage },
+        params,
       });
       setPastTranscriptions(response.data.data || []);
       setTotalPages(Math.max(1, Math.ceil((response.data.total || 0) / itemsPerPage)));
@@ -73,11 +85,18 @@ function App() {
       setTranscription('');
       setPastTranscriptions([]);
       setError('');
+      setSearchQuery(''); // Reset search query on logout
     } catch (err) {
       setError('Logout failed: ' + err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // FIXED: Added search handler
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    setCurrentPage(1); // Reset to first page on search
   };
 
   return (
@@ -135,10 +154,13 @@ function App() {
               pastTranscriptions={pastTranscriptions}
               loading={loading}
               setLoading={setLoading}
+              setPastTranscriptions={setPastTranscriptions} // Added this prop
               setError={setError}
               currentPage={currentPage}
               totalPages={totalPages}
               setCurrentPage={setCurrentPage}
+              searchQuery={searchQuery} // Added search query prop
+              onSearch={handleSearch} // Added search handler prop
             />
           </div>
         )}

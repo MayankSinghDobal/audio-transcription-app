@@ -193,13 +193,13 @@ app.delete('/transcriptions/:id', authenticate, async (req, res) => {
   }
 });
 
-// File upload and transcription
-app.post('/upload', authenticate, upload.single('audio'), async (req, res) => {
+// FIXED: Unified transcription endpoint for both upload and recording
+app.post('/transcribe', authenticate, upload.single('audio'), async (req, res) => {
   let filePath = null;
 
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ error: 'No audio file uploaded' });
     }
 
     console.log('File received:', req.file.filename, 'Size:', req.file.size, 'Type:', req.file.mimetype);
@@ -234,8 +234,9 @@ app.post('/upload', authenticate, upload.single('audio'), async (req, res) => {
         throw new Error('ASSEMBLYAI_API_KEY is not set');
       }
       
+      // Execute Python transcription script
       transcription = execSync(`python transcribe.py "${filePath}"`, { 
-        timeout: 60000,
+        timeout: 120000, // Increased timeout to 2 minutes
         encoding: 'utf8' 
       }).toString().trim();
       
@@ -250,6 +251,7 @@ app.post('/upload', authenticate, upload.single('audio'), async (req, res) => {
 
     console.log('Transcription result:', transcription.substring(0, 100) + '...');
 
+    // Save to database
     console.log('Saving to database for user:', req.user.sub);
     const { data, error: dbError } = await supabaseAdmin
       .from('transcriptions')
@@ -270,23 +272,25 @@ app.post('/upload', authenticate, upload.single('audio'), async (req, res) => {
 
     console.log('Successfully saved transcription to database');
 
+    // Clean up uploaded file
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       console.log('Cleaned up uploaded file');
     }
 
     res.json({
-      message: 'File uploaded and transcribed successfully',
+      message: 'Audio transcribed successfully',
       transcription: transcription,
       id: data?.[0]?.id
     });
     
   } catch (error) {
-    console.error('Error in /upload route:', {
+    console.error('Error in /transcribe route:', {
       message: error.message,
       stack: error.stack,
     });
     
+    // Clean up file on error
     if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
@@ -296,6 +300,13 @@ app.post('/upload', authenticate, upload.single('audio'), async (req, res) => {
       details: error.message,
     });
   }
+});
+
+// Keep the old /upload endpoint for backward compatibility
+app.post('/upload', authenticate, upload.single('audio'), async (req, res) => {
+  // Redirect to the new /transcribe endpoint
+  req.url = '/transcribe';
+  return app._router.handle(req, res);
 });
 
 // Health check endpoint

@@ -5,6 +5,7 @@ import AuthComponent from './components/AuthComponent';
 import TranscriptionControls from './components/TranscriptionControls';
 import TranscriptionDisplay from './components/TranscriptionDisplay';
 import TranscriptionList from './components/TranscriptionList';
+import DragonAnimation from './DragonAnimation'; // Added this import
 import './App.css';
 
 const supabase = createClient(

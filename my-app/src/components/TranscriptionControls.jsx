@@ -30,14 +30,17 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
             headers: { Authorization: `Bearer ${user.access_token}` },
             body: formData,
           });
-          if (!response.ok) throw new Error(`Transcription failed: ${response.status} - ${response.statusText}`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Transcription failed: ${response.status} - ${errorText}`);
+          }
           const data = await response.json();
           setTranscription(data.transcription || 'No transcription returned');
           fetchTranscriptions();
           setCurrentPage(1);
         } catch (err) {
-          setError('Failed to transcribe audio: ' + err.message);
-          console.error('Transcription error:', err, 'Response:', await response?.text());
+          setError(`Failed to transcribe audio: ${err.message}`);
+          console.error('Transcription error:', err);
         }
       };
 
@@ -77,14 +80,17 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
         headers: { Authorization: `Bearer ${user.access_token}` },
         body: formData,
       });
-      if (!response.ok) throw new Error(`Upload failed: ${response.status} - ${response.statusText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      }
       const data = await response.json();
       setTranscription(data.transcription || 'No transcription returned');
       fetchTranscriptions();
       setCurrentPage(1);
     } catch (err) {
-      setError('Failed to upload audio: ' + err.message);
-      console.error('Upload error:', err, 'Response:', await response?.text());
+      setError(`Failed to upload audio: ${err.message}`);
+      console.error('Upload error:', err);
     } finally {
       setLoading(false);
     }
@@ -101,7 +107,7 @@ const TranscriptionControls = ({ user, loading, setLoading, setTranscription, se
           <FaMicrophone className="mr-2 animate-pulse" />
           {isRecording ? 'Stop Recording' : 'Record Audio'}
         </button>
-        <label className="holo-btn flex-1 flex items-center justify-center px-6 py-4 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" disabled={loading || !user}>
+        <label className="holo-btn flex-1 flex items-center justify-center px-6 py-4 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/20 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
           <FaUpload className="mr-2 animate-pulse" />
           Upload Audio
           <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" disabled={loading || !user} />

@@ -70,7 +70,16 @@ const TranscriptionList = ({ user, pastTranscriptions, loading, setError, curren
     URL.revokeObjectURL(url);
   };
 
-  const handleSearch = (e) => { setSearchQuery(e.target.value); setCurrentPage(1); };
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); // Reset to first page on search
+  };
+
+  const filteredTranscriptions = pastTranscriptions.filter(t =>
+    t.transcription?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.filename?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const goToNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
@@ -97,10 +106,10 @@ const TranscriptionList = ({ user, pastTranscriptions, loading, setError, curren
           <FaFileExport className="mr-2 animate-pulse" /> Export Data Matrix
         </button>
       </div>
-      {pastTranscriptions.length > 0 ? (
+      {filteredTranscriptions.length > 0 ? (
         <>
           <ul className="space-y-6">
-            {pastTranscriptions.map(t => (
+            {filteredTranscriptions.map(t => (
               <li key={t.id} className="p-8 bg-gradient-to-br from-gray-900/80 to-gray-800/80 rounded-xl border border-cyan-500/20 backdrop-blur-lg transition-all duration-500 hover:shadow-2xl hover:shadow-cyan-500/10 transform hover:-translate-y-1">
                 <div className="transcription-header flex justify-between items-center mb-6">
                   <strong className="text-cyan-400 text-lg">{t.filename}</strong>

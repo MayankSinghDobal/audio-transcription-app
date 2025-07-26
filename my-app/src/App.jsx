@@ -99,8 +99,8 @@ function App() {
           <AuthComponent supabase={supabase} user={user} setUser={setUser} loading={loading} setLoading={setLoading} setError={setError} error={error} />
         ) : (
           <div>
-            <div className="flex justify-between items-center mb-6">
-              <span className="text-cyan-400">Logged in as: {user.email}</span>
+            <div className="flex justify-between items-center mb-8">
+              <span className="text-cyan-400 text-lg">Signed in as: {user.email}</span>
               <button
                 onClick={handleLogout}
                 className="holo-btn px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
